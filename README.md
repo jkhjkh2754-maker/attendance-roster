@@ -57,6 +57,14 @@
 
 소유권 확인용 파일·태그는 각 서비스가 실제로 발급한 값을 사용하며, 확인 후에도 유지합니다. 사이트 주소가 바뀌면 `index.html`의 canonical·Open Graph·JSON-LD URL과 `sitemap.xml`도 함께 변경합니다.
 
+### IndexNow로 페이지 갱신 알리기
+
+네이버·Bing 등 IndexNow 참여 검색엔진에는 계정 로그인 없이도 페이지 갱신을 알릴 수 있습니다. 저장소 루트의 **32자리 16진수 이름을 가진 `.txt` 파일**이 이 사이트의 IndexNow 인증 파일입니다. 파일 내용은 확장자를 제외한 파일명과 같으며, 배포 후에도 유지합니다. 이 파일은 Google·네이버 웹마스터 도구의 계정 소유확인용 태그를 대신하지 않습니다.
+
+[네이버 공식 요청 안내](https://searchadvisor.naver.com/guide/indexnow-request)에 따라 `https://searchadvisor.naver.com/indexnow`로 대표 URL과 key, 인증 파일의 공개 주소인 keyLocation을 전송합니다. 이 사이트는 GitHub Pages의 하위 경로이므로 keyLocation에 `https://jkhjkh2754-maker.github.io/attendance-roster/인증파일명.txt`를 반드시 지정합니다. 이 키는 `/attendance-roster/` 아래 URL에만 사용합니다. IndexNow 참여 검색엔진은 접수된 URL을 서로 공유하므로 같은 URL을 여러 엔진에 반복 제출할 필요는 없습니다.
+
+HTTP 200은 요청 접수 성공, 202는 요청 접수 후 키 확인 중이라는 뜻입니다. 어느 응답도 실제 색인이나 검색 노출을 보장하지 않습니다. Google Search Console의 수집 요청은 위의 계정 소유권 확인 절차를 별도로 따릅니다.
+
 `robots.txt`는 호스트 루트인 `https://jkhjkh2754-maker.github.io/robots.txt`에 있을 때만 적용됩니다. 이 프로젝트 경로 아래에 만드는 `attendance-roster/robots.txt`는 검색 로봇 정책으로 사용되지 않습니다. 호스트 루트의 `robots.txt`가 404인 것은 수집 차단이 아니며, 이 사이트는 HTML의 `index, follow`로 색인을 허용합니다. 이후 호스트 루트 정책을 추가할 때 이 사이트 경로를 차단하지 않도록 확인하세요.
 
 ## 구성과 오픈소스
