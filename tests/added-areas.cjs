@@ -69,6 +69,7 @@ const {chromium}=require('playwright');
   await page.locator('#roster').fill('');await page.locator('button[type="submit"]').click();await page.waitForFunction(()=>document.querySelector('#summary').textContent.includes('명단 0명'));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   // Regression: the screenshot selected 71.193% of the page as one data cell.
+  const originalGap=await page.locator('#row-gap').inputValue();
   await page.locator('#capacity').fill('24');await page.locator('#rows').fill('24');
   await page.locator('#add-id-area').click();await page.waitForFunction(()=>!document.querySelector('#download').disabled);
   overlay=page.locator('.mapping-overlay');await overlay.scrollIntoViewIfNeeded();await page.waitForTimeout(500);box=await overlay.boundingBox();
@@ -76,7 +77,8 @@ const {chromium}=require('playwright');
   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:box.x+box.width*.2,y:box.y+box.height*.92177}]});
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   assert.ok(Math.abs(Number(await page.locator('#area-h').inputValue())-71.193/24)<.01);
-  assert.ok(Number(await page.locator('#row-gap').inputValue())<40);
+  assert.equal(await page.locator('#row-gap').inputValue(),originalGap);
+  assert.ok(Number(await page.locator('#area-gap').inputValue())<40);
   await page.locator('button[type="submit"]').click();await page.waitForFunction(()=>!document.querySelector('#download').disabled);
   assert.equal(await page.locator('#form-error').textContent(),'');
   // Recover an already selected full-height area, including after PDF generation.
@@ -84,6 +86,19 @@ const {chromium}=require('playwright');
   await page.waitForFunction(()=>Number(document.querySelector('#area-h').value)<4);
   await page.locator('button[type="submit"]').click();await page.waitForFunction(()=>!document.querySelector('#download').disabled);
   assert.equal(await page.locator('#form-error').textContent(),'');
+  // The reported layout: ID is fitted, while name/number remain full-height.
+  const regression=await page.evaluate(async source=>{
+    const core=await import('/core.mjs');const font=await(await fetch('/assets/NanumGothic-Regular.ttf')).arrayBuffer();
+    const c={title:'배치 검증',rows:24,capacity:24,showId:true,start:1,records:Array.from({length:24},(_,i)=>({id:String(i+1).padStart(4,'0'),name:'가상학생'}))};
+    const mapping={id:{x:.03,y:.21,w:.1,h:.71/24,rowStep:.71/24,border:true,header:true},name:{x:.3,y:.21,w:.2,h:.71},number:{x:.2,y:.21,w:.08,h:.71},title:{x:.3,y:.05,w:.3,h:.05}};
+    const data=await core.customDocument(c,PDFLib,fontkit,font,new Uint8Array(source),mapping,60,9);
+    const pdfjs=await import('/vendor/pdf.min.mjs');const doc=await pdfjs.getDocument({data,isEvalSupported:false}).promise;const p=await doc.getPage(1);const texts=(await p.getTextContent()).items.map(x=>({text:x.str,y:x.transform[5]}));await doc.destroy();
+    let error='';try{await core.customDocument(c,PDFLib,fontkit,font,new Uint8Array(source),{...mapping,name:{...mapping.name,h:.03,rowGap:60}},30,9);}catch(e){error=e.message;}
+    return {texts,error};
+  },source);
+  assert.equal(regression.texts.filter(t=>t.text==='가상학생').length,24);
+  assert.ok(regression.texts.find(t=>t.text==='0024').y>0);
+  assert.ok(regression.error.includes('이름 영역의 마지막 행'));assert.ok(regression.error.includes('1쪽'));
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
   console.log('PASS: PDF/image upload, added column, drag/move/resize, typography, multi-page PDF, validation, deletion, original mapping, mobile layout, no external requests');
   await browser.close();

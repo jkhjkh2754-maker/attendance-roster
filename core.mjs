@@ -39,10 +39,26 @@ export function pageCount(c) { return Math.ceil(c.capacity / c.rows); }
 // Mapping stores one person's cell, even when the user selects the whole column.
 export function rowSelection(box, rows, pageHeight, mode='auto') {
   const split=mode==='column'||(mode==='auto'&&box.h>.15);
-  if(!split)return {box:{...box},split:false};
+  if(!split)return {box:{...box,selectionMode:mode},split:false};
   if(!Number.isInteger(rows)||rows<5||rows>40)throw new Error('먼저 페이지당 인원을 5~40명으로 지정해 주세요.');
-  const cell={...box,h:box.h/rows};
+  const cell={...box,h:box.h/rows,selectionMode:mode};
+  delete cell.rowGap;
+  cell.rowStep=cell.h;
   return {box:cell,split:true,gap:cell.h*pageHeight};
+}
+
+export function prepareMapping(mapping, rows, pageHeight) {
+  const result={},converted=[];
+  for(const [kind,box] of Object.entries(mapping)) {
+    if(kind!=='title'&&box.h>.15&&box.rowStep===undefined&&box.selectionMode!=='cell') {
+      result[kind]=rowSelection(box,rows,pageHeight,'column').box;converted.push(kind);
+    }else result[kind]={...box};
+  }
+  return {mapping:result,converted};
+}
+
+export function mappingRowGap(box, pageHeight, fallback) {
+  return box.rowGap??(box.rowStep!==undefined?box.rowStep*pageHeight:fallback);
 }
 
 const fontCharacterSets = new WeakMap();
@@ -116,15 +132,18 @@ export function validateMapping(c, mapping) {
   for(const [kind,box] of Object.entries(mapping)) {
     if(!['x','y','w','h'].every(k=>Number.isFinite(box[k]))||box.w<.005||box.h<.005||box.x<0||box.y<0||box.x+box.w>1.000001||box.y+box.h>1.000001) throw new Error(`${kind} 기입 영역을 용지 안에 지정해 주세요.`);
     if(box.fontSize!==undefined&&(!Number.isFinite(box.fontSize)||box.fontSize<6||box.fontSize>36)) throw new Error('영역 글자 크기는 6~36pt로 지정해 주세요.');
+    if(box.rowGap!==undefined&&(!Number.isFinite(box.rowGap)||box.rowGap<=0||box.rowGap>200)) throw new Error('영역 행 간격은 0보다 크고 200 이하인 pt 값이어야 합니다.');
     if(box.header&&box.y<box.h) throw new Error('학번 제목 칸이 용지 위를 벗어납니다. 열 전체를 선택했다면 ‘선택 영역을 전체 열로 나누기’를 누르세요. 한 칸을 선택했다면 학번 영역을 아래로 이동하거나 제목 칸 추가를 꺼 주세요.');
   }
 }
 
 export async function customDocument(c, lib, fontkit, fontBytes, template, mapping, gap, fontSize) {
+  const source=await lib.PDFDocument.load(template);
+  mapping=prepareMapping(mapping,c.rows,source.getPage(0).getHeight()).mapping;
   validateMapping(c,mapping);
   if(!Number.isFinite(gap)||gap<=0||gap>200) throw new Error('행 간격은 0보다 크고 200 이하인 pt 값이어야 합니다.');
   if(!Number.isFinite(fontSize)||fontSize<6||fontSize>36) throw new Error('글자 크기는 6~36pt로 지정해 주세요.');
-  const source=await lib.PDFDocument.load(template),doc=await lib.PDFDocument.create();doc.registerFontkit(fontkit);
+  const doc=await lib.PDFDocument.create();doc.registerFontkit(fontkit);
   const font=await doc.embedFont(fontBytes,{subset:false}), count=Math.max(source.getPageCount(),pageCount(c));
   for(let p=0;p<count;p++) {
     const original=source.getPage(p%source.getPageCount());
@@ -133,6 +152,7 @@ export async function customDocument(c, lib, fontkit, fontBytes, template, mappi
     const {width:w,height:h}=page.getSize();
     for(const [kind,b] of Object.entries(mapping)) {
       if(kind==='id'&&!c.showId) continue;
+      const rowGap=mappingRowGap(b,h,gap);
       const size=b.fontSize??fontSize;
       const border=(y)=>page.drawRectangle({x:b.x*w,y,width:b.w*w,height:b.h*h,borderWidth:.5,borderColor:lib.rgb(.25,.3,.25)});
       if(kind==='id'&&b.header){
@@ -146,8 +166,11 @@ export async function customDocument(c, lib, fontkit, fontBytes, template, mappi
         if(kind!=='title'&&index>=c.capacity) break;
         const rec=c.records[index];
         const text=kind==='title'?c.title:kind==='number'?String(c.start+index):kind==='id'?(rec?.id||''):(rec?.name||'');
-        const y=h-(b.y+b.h)*h-r*gap;
-        if(y<0) throw new Error('마지막 행이 용지를 벗어납니다. 페이지당 인원 또는 행 간격을 줄여 주세요.');
+        const y=h-(b.y+b.h)*h-r*rowGap;
+        if(y<-.001) {
+          const label={name:'이름',id:'학번',number:'번호',title:'제목'}[kind]||kind;
+          throw new Error(`${label} 영역의 마지막 행이 용지를 벗어납니다 (${p+1}쪽, ${r+1}번째 행). 해당 영역의 위치·한 칸 높이·행 간격을 확인해 주세요. 현재 행 간격: ${rowGap.toFixed(2)}pt.`);
+        }
         if(kind==='title') page.drawRectangle({x:b.x*w,y,width:b.w*w,height:b.h*h,color:lib.rgb(1,1,1)});
         if(b.border)border(y);
         centeredText(page,font,text,b.x*w,y,b.w*w,b.h*h,size,lib.rgb(0,0,0),b.align);

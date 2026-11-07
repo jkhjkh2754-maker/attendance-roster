@@ -1,10 +1,11 @@
-import { parseRoster, validateConfig, standardDocument, customDocument, rowSelection } from './core.mjs?v=20261107-column-selection-1';
+import { parseRoster, validateConfig, standardDocument, customDocument, rowSelection, prepareMapping, mappingRowGap } from './core.mjs?v=20261107-row-layout-1';
 import { templateType, imageTemplate } from './image-template.mjs';
 import * as pdfjs from './vendor/pdf.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
 const $=id=>document.getElementById(id), form=$('roster-form');
 document.querySelectorAll('button, input, select, textarea').forEach(control=>{control.disabled=false;});
 const areaNames={name:'이름',id:'학번',number:'번호',title:'제목'};
+let templatePageHeight=0;
 let selectedArea=null,addingArea=false,gesture=null;
 let template=null,mapping={},mappingTarget=null,firstPoint=null,output=null,dirty=true,busy=false,currentConfig=null,toastTimer,previewGeneration=0,revision=0;
 const fontPromise=fetch('./assets/NanumGothic-Regular.ttf').then(r=>{if(!r.ok)throw new Error('한글 글꼴을 불러오지 못했습니다. 페이지를 다시 열어 주세요.');return r.arrayBuffer()});
@@ -49,11 +50,11 @@ function drawMapping(){
   for(const [kind,b]of Object.entries(mapping)){
     ctx.fillStyle=kind==='title'?'#e3ac4230':'#14635430';ctx.strokeStyle=kind==='title'?'#b97712':'#146354';ctx.lineWidth=2;
     ctx.fillRect(b.x*w,b.y*h,b.w*w,b.h*h);ctx.strokeRect(b.x*w,b.y*h,b.w*w,b.h*h);
-    if(b.border||b.header){
-      const gap=Number($('row-gap').value)/Number(canvas.dataset.pageHeight);
+    if(kind!=='title'){
+      const pageHeight=Number(canvas.dataset.pageHeight),gap=mappingRowGap(b,pageHeight,Number($('row-gap').value))/pageHeight;
       ctx.setLineDash([5,4]);
       if(b.header)ctx.strokeRect(b.x*w,(b.y-b.h)*h,b.w*w,b.h*h);
-      if(b.border&&Number.isFinite(gap))for(let r=1;r<Math.min(Number($('rows').value),Number($('capacity').value));r++)ctx.strokeRect(b.x*w,(b.y+r*gap)*h,b.w*w,b.h*h);
+      if(Number.isFinite(gap))for(let r=1;r<Math.min(Number($('rows').value),Number($('capacity').value));r++)ctx.strokeRect(b.x*w,(b.y+r*gap)*h,b.w*w,b.h*h);
       ctx.setLineDash([]);
     }
     if(kind===selectedArea){ctx.fillStyle='#146354';ctx.fillRect((b.x+b.w)*w-6,(b.y+b.h)*h-6,12,12);}
@@ -71,7 +72,7 @@ function mapClick(event){
     const box={x:Math.min(point.x,firstPoint.x),y:Math.min(point.y,firstPoint.y),w:Math.abs(point.x-firstPoint.x),h:Math.abs(point.y-firstPoint.y)};
     if(box.w<.005||box.h<.005){toast('영역이 너무 작습니다. 두 모서리를 다시 지정해 주세요.');firstPoint=null;drawMapping();return;}
     let selected;try{selected=mappingTarget==='title'?{box,split:false}:rowSelection(box,Number($('rows').value),Number(event.currentTarget.dataset.pageHeight),$('selection-mode').value);}catch(e){error(e.message);firstPoint=null;return;}
-    if(selected.split){$('row-gap').value=Number(selected.gap.toFixed(3));toast(`선택한 열을 ${$('rows').value}명분으로 나눴습니다.`);}
+    if(selected.split){toast(`선택한 열을 ${$('rows').value}명분으로 나눴습니다.`);}
     mapping[mappingTarget]=selected.box;selectedArea=mappingTarget;firstPoint=null;mappingTarget=null;syncAreaEditor();markDirty();
   }
   drawMapping();
@@ -84,6 +85,8 @@ function syncAreaEditor(){
   if(!selectedArea)return;
   $('area-kind').value=selectedArea;const b=mapping[selectedArea];
   for(const k of ['x','y','w','h'])$('area-'+k).value=Number((b[k]*100).toFixed(3));
+  const pageHeight=Number(document.querySelector('.mapping-overlay')?.dataset.pageHeight)||templatePageHeight;
+  $('area-gap').value=selectedArea==='title'?'':Number(mappingRowGap(b,pageHeight,Number($('row-gap').value)).toFixed(3));$('area-gap').disabled=selectedArea==='title';
   $('area-font').value=b.fontSize??$('font-size').value;$('area-align').value=b.align||'center';
   $('area-border').checked=!!b.border;$('area-header').checked=!!b.header;
   $('area-header').disabled=selectedArea!=='id';$('split-area').disabled=selectedArea==='title';
@@ -119,8 +122,7 @@ function areaPointerUp(event){
   }else{
     if(g.mode==='create'){
       let selected;try{selected=rowSelection(b,Number($('rows').value),Number(event.currentTarget.dataset.pageHeight),$('selection-mode').value);}catch(e){areaPointerCancel();error(e.message);return;}
-      mapping.id=selected.box;
-      $('row-gap').value=Number((selected.box.h*Number(event.currentTarget.dataset.pageHeight)).toFixed(3));
+      mapping.id={...selected.box,rowStep:selected.box.h};
       form.elements.showId.checked=true;addingArea=false;mappingTarget=null;
       toast(selected.split?`학번 열을 ${$('rows').value}명분으로 나눴습니다. 이름 칸도 열 전체로 지정했다면 같은 방식으로 나눠 주세요.`:'학번 칸을 추가했습니다. 행 간격과 페이지당 인원을 확인한 뒤 업데이트해 주세요.');
     }
@@ -143,10 +145,11 @@ async function openAreaEditor(kind,add=false){
 $('add-id-area').addEventListener('click',()=>openAreaEditor('id',true));
 $('edit-area').addEventListener('click',()=>openAreaEditor(selectedArea));
 $('area-kind').addEventListener('change',()=>{selectedArea=$('area-kind').value;syncAreaEditor();drawMapping();});
-for(const key of ['x','y','w','h','font','align','border','header'])$('area-'+key).addEventListener('input',()=>{
+for(const key of ['x','y','w','h','font','gap','align','border','header'])$('area-'+key).addEventListener('input',()=>{
   if(!mapping[selectedArea])return;
   const b=mapping[selectedArea],el=$('area-'+key);
   if(['x','y','w','h'].includes(key))b[key]=el.value===''?NaN:Number(el.value)/100;
+  else if(key==='gap'){if(el.value===''){delete b.rowGap;delete b.rowStep;}else b.rowGap=Number(el.value);}
   else if(key==='font')b.fontSize=el.value===''?NaN:Number(el.value);
   else if(key==='align')b.align=el.value;
   else b[key]=el.checked;
@@ -160,7 +163,7 @@ $('split-area').addEventListener('click',async()=>{
     const canvas=document.querySelector('.mapping-overlay');if(!canvas)return;
     const height=Number(canvas.dataset.pageHeight);
     const selected=rowSelection(mapping[selectedArea],Number($('rows').value),height,'column');
-    mapping[selectedArea]=selected.box;$('row-gap').value=Number(selected.gap.toFixed(3));
+    mapping[selectedArea]=selected.box;
     syncAreaEditor();drawMapping();markDirty();error();toast(`선택 영역을 ${$('rows').value}명분으로 나누고 행 간격을 맞췄습니다.`);
   }catch(e){error(e.message);}
 });
@@ -170,6 +173,10 @@ async function generate(){
   if(busy)return false;const generationRevision=revision;setBusy(true);error();
   try{
     const c=config(),font=await fontPromise;
+    if(template){
+      const prepared=prepareMapping(mapping,c.rows,templatePageHeight);mapping=prepared.mapping;syncAreaEditor();drawMapping();
+      if(prepared.converted.length)toast(`${prepared.converted.map(k=>areaNames[k]).join(', ')} 열 전체를 ${c.rows}명분으로 자동 보정했습니다.`);
+    }
     if(!globalThis.PDFLib||!globalThis.fontkit)throw new Error('PDF 도구를 불러오지 못했습니다. 페이지를 다시 열어 주세요.');
     const bytes=template?await customDocument(c,PDFLib,fontkit,font,template,mapping,Number($('row-gap').value),Number($('font-size').value)):await standardDocument(c,PDFLib,fontkit,font);
     currentConfig=c;await renderBytes(bytes);output=bytes;dirty=false;mappingTarget=null;firstPoint=null;addingArea=false;gesture=null;
@@ -210,7 +217,7 @@ $('template-file').addEventListener('change',async e=>{
       const crop=p.getCropBox(),media=p.getMediaBox();
       if(crop.x!==0||crop.y!==0||media.x!==0||media.y!==0||crop.width!==media.width||crop.height!==media.height)throw new Error('잘라내기 정보가 있는 PDF입니다. PDF로 인쇄해 일반 페이지로 저장한 뒤 첨부해 주세요.');
     }
-    await renderBytes(bytes,true);template=bytes;mapping={};mappingTarget=null;firstPoint=null;selectedArea=null;addingArea=false;gesture=null;syncAreaEditor();drawMapping();
+    await renderBytes(bytes,true);template=bytes;templatePageHeight=probe.getPage(0).getHeight();mapping={};mappingTarget=null;firstPoint=null;selectedArea=null;addingArea=false;gesture=null;syncAreaEditor();drawMapping();
     $('template-controls').hidden=false;$('template-status').textContent=`${file.name} · ${converted?`이미지 ${converted.width}×${converted.height} → PDF 1쪽`:`${probe.getPageCount()}쪽`}`;
     $('summary').textContent='원본 양식을 불러왔습니다. 첫 행의 기입 영역을 지정해 주세요.';markDirty();
   }catch(e){error(e.message?.includes('encrypt')?'암호화된 PDF는 지원하지 않습니다. 암호를 해제한 파일을 첨부해 주세요.':e.message||'양식을 불러오지 못했습니다.');}
