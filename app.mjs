@@ -1,4 +1,4 @@
-import { parseRoster, validateConfig, standardDocument, customDocument } from './core.mjs';
+import { parseRoster, validateConfig, standardDocument, customDocument } from './core.mjs?v=20261107-added-areas-1';
 import { templateType, imageTemplate } from './image-template.mjs';
 import * as pdfjs from './vendor/pdf.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
