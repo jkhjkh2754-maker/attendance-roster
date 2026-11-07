@@ -1,4 +1,5 @@
 import { parseRoster, validateConfig, standardDocument, customDocument } from './core.mjs';
+import { templateType, imageTemplate } from './image-template.mjs';
 import * as pdfjs from './vendor/pdf.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
 const $=id=>document.getElementById(id), form=$('roster-form');
@@ -34,7 +35,7 @@ async function renderBytes(bytes,mapper=false){
     }
     if(generation!==previewGeneration)return;
     $('preview-pages').replaceChildren(fragment);
-    $('page-info').textContent=`${mapper||template?'PDF 양식':currentConfig?.orientation==='landscape'?'A4 가로':'A4 세로'} · ${pdf.numPages}페이지`;
+    $('page-info').textContent=`${mapper||template?'첨부 양식':currentConfig?.orientation==='landscape'?'A4 가로':'A4 세로'} · ${pdf.numPages}페이지`;
     if(mapper)drawMapping();
   }finally{await pdf.destroy();}
 }
@@ -96,10 +97,12 @@ $('print').addEventListener('click',async()=>{
 });
 $('template-file').addEventListener('change',async e=>{
   const file=e.target.files[0];if(!file)return;if(busy)return;
-  if(file.size>10*1024*1024){error('PDF 파일은 10MB 이하로 첨부해 주세요.');e.target.value='';return;}
+  if(file.size>10*1024*1024){error('양식 파일은 10MB 이하로 첨부해 주세요.');e.target.value='';return;}
   setBusy(true);error();
   try{
-    const bytes=new Uint8Array(await file.arrayBuffer());
+    const inputBytes=new Uint8Array(await file.arrayBuffer()),type=templateType(inputBytes);
+    const converted=type==='application/pdf'?null:await imageTemplate(inputBytes,type,PDFLib);
+    const bytes=converted?converted.bytes:inputBytes;
     const probe=await PDFLib.PDFDocument.load(bytes);if(probe.getPageCount()>15)throw new Error('첨부 PDF는 최대 15쪽까지 지원합니다.');
     for(const p of probe.getPages()){
       if(p.getRotation().angle!==0)throw new Error('페이지 회전을 적용해 저장한 PDF를 첨부해 주세요.');
@@ -107,9 +110,9 @@ $('template-file').addEventListener('change',async e=>{
       if(crop.x!==0||crop.y!==0||media.x!==0||media.y!==0||crop.width!==media.width||crop.height!==media.height)throw new Error('잘라내기 정보가 있는 PDF입니다. PDF로 인쇄해 일반 페이지로 저장한 뒤 첨부해 주세요.');
     }
     await renderBytes(bytes,true);template=bytes;mapping={};mappingTarget=null;firstPoint=null;drawMapping();
-    $('template-controls').hidden=false;$('template-status').textContent=`${file.name} · ${probe.getPageCount()}쪽`;
+    $('template-controls').hidden=false;$('template-status').textContent=`${file.name} · ${converted?`이미지 ${converted.width}×${converted.height} → PDF 1쪽`:`${probe.getPageCount()}쪽`}`;
     $('summary').textContent='원본 양식을 불러왔습니다. 첫 행의 기입 영역을 지정해 주세요.';markDirty();
-  }catch(e){error(e.message?.includes('encrypt')?'암호화된 PDF는 지원하지 않습니다. 암호를 해제한 파일을 첨부해 주세요.':e.message||'PDF를 불러오지 못했습니다.');}
+  }catch(e){error(e.message?.includes('encrypt')?'암호화된 PDF는 지원하지 않습니다. 암호를 해제한 파일을 첨부해 주세요.':e.message||'양식을 불러오지 못했습니다.');}
   finally{setBusy(false);e.target.value='';}
 });
 document.querySelectorAll('[data-map]').forEach(button=>button.addEventListener('click',async()=>{

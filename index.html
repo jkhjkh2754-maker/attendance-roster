@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="./startup.css">
   <script defer src="./vendor/pdf-lib.min.js"></script>
   <script defer src="./vendor/fontkit.min.js"></script>
-  <script defer src="./bootstrap.js?v=20261107-file-guard-1"></script>
+  <script defer src="./bootstrap.js?v=20261107-image-templates-1"></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">✓</span>출석부 작업실</a><span class="local-badge"><span></span>명단은 내 기기에서만 처리</span></header>
@@ -22,9 +22,9 @@
     <div class="workspace">
       <aside class="settings" aria-label="출석부 설정">
         <form id="roster-form" novalidate onsubmit="return false">
-          <section class="form-section template-section"><h2><span>+</span> 나의 PDF 양식</h2>
-            <label for="template-file" class="upload-label">PDF 양식 불러오기 <span>↑</span></label><input id="template-file" type="file" accept="application/pdf,.pdf">
-            <p class="field-hint">최대 10MB · 파일은 서버로 전송하지 않습니다.</p>
+          <section class="form-section template-section"><h2><span>+</span> 나의 양식 <small>PDF · 이미지</small></h2>
+            <label for="template-file" class="upload-label">PDF·이미지 양식 불러오기 <span>↑</span></label><input id="template-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp,.pdf,.png,.jpg,.jpeg,.webp">
+            <p class="field-hint">PDF · PNG · JPG · WebP / 최대 10MB<br>이미지는 비율을 유지해 PDF로 변환합니다. 파일은 서버로 전송하지 않습니다.</p>
             <p id="template-status" class="field-hint" role="status">첨부 없이 기본 출석부를 만들 수 있어요.</p>
             <div id="template-controls" hidden>
               <p class="mapping-guide">① 아래에서 기입할 항목 선택<br>② 오른쪽 양식에서 <b>첫 행 칸의 왼쪽 위, 오른쪽 아래</b>를 차례로 누르세요.<br>③ 행 간격과 페이지당 인원을 맞춰 주세요.</p>
