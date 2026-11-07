@@ -8,7 +8,7 @@ const fontPromise=fetch('./assets/NanumGothic-Regular.ttf').then(r=>{if(!r.ok)th
 fontPromise.catch(()=>{});
 
 function config(){const f=new FormData(form);return validateConfig({title:f.get('title'),capacity:f.get('capacity'),start:f.get('start'),columns:f.get('columns'),columnMode:f.get('columnMode'),year:f.get('year'),month:f.get('month'),rows:f.get('rows'),orientation:f.get('orientation'),accent:f.get('accent'),roster:f.get('roster'),weekdays:f.has('weekdays'),showId:f.has('showId'),showNote:f.has('showNote')});}
-function error(message=''){ $('form-error').textContent=message;$('form-error').hidden=!message; }
+function error(message=''){ $('form-error').textContent=message;$('form-error').hidden=!message;if(message)$('form-error').scrollIntoView({behavior:'smooth',block:'center'}); }
 function toast(message){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,4200);}
 function setBusy(value){busy=value;for(const id of ['download','print','template-file'])$(id).disabled=value;form.querySelector('[type=submit]').disabled=value;}
 function markDirty(){revision++;dirty=true;$('summary').classList.add('dirty');$('summary').textContent='설정이 변경되었습니다. 업데이트 또는 PDF 저장을 눌러 주세요.';}
