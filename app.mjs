@@ -2,6 +2,7 @@ import { parseRoster, validateConfig, standardDocument, customDocument } from '.
 import * as pdfjs from './vendor/pdf.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
 const $=id=>document.getElementById(id), form=$('roster-form');
+document.querySelectorAll('button, input, select, textarea').forEach(control=>{control.disabled=false;});
 let template=null,mapping={},mappingTarget=null,firstPoint=null,output=null,dirty=true,busy=false,currentConfig=null,toastTimer,previewGeneration=0,revision=0;
 const fontPromise=fetch('./assets/NanumGothic-Regular.ttf').then(r=>{if(!r.ok)throw new Error('한글 글꼴을 불러오지 못했습니다. 페이지를 다시 열어 주세요.');return r.arrayBuffer()});
 // The font is local to this deployment. No roster or PDF is sent anywhere.
