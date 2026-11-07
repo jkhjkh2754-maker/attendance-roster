@@ -21,7 +21,7 @@
     showFailure('현재 PC의 HTML 파일을 직접 열었습니다. 브라우저의 파일 보안 제한으로 이 방식에서는 미리보기와 PDF 저장을 사용할 수 없습니다. 아래 버튼으로 공개 웹사이트를 열어 주세요.');
     return;
   }
-  import('./app.mjs?v=20261107-image-templates-1').catch(() => {
+  import('./app.mjs?v=20261107-added-areas-1').catch(() => {
     showFailure('출석부 도구를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요. 계속되면 최신 브라우저에서 온라인 출석부를 열어 주세요.');
   });
 })();

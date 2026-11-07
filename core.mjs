@@ -47,10 +47,11 @@ function fittedSize(font, text, width, wanted, minimum = 5.5) {
   return size;
 }
 
-export function centeredText(page, font, text, x, y, w, h, wanted, color) {
+export function centeredText(page, font, text, x, y, w, h, wanted, color, align = 'center') {
   if (!text) return;
   const size = fittedSize(font, text, w - 5, wanted);
-  page.drawText(text, { x:x + (w - font.widthOfTextAtSize(text,size))/2, y:y + (h - font.heightAtSize(size,{descender:false}))/2, size, font, color });
+  const textWidth=font.widthOfTextAtSize(text,size);
+  page.drawText(text, { x:align==='left'?x+2.5:align==='right'?x+w-textWidth-2.5:x+(w-textWidth)/2, y:y + (h - font.heightAtSize(size,{descender:false}))/2, size, font, color });
 }
 
 export async function standardDocument(c, lib, fontkit, fontBytes) {
@@ -104,7 +105,9 @@ export function validateMapping(c, mapping) {
   if(c.records.length && !mapping.name) throw new Error('PDF 양식에서 이름의 첫 번째 칸을 지정해 주세요.');
   if(c.records.some(r=>r.id) && c.showId && !mapping.id) throw new Error('학번이 있는 명단입니다. 학번의 첫 번째 칸을 지정하거나 학번 칸 표시를 꺼 주세요.');
   for(const [kind,box] of Object.entries(mapping)) {
-    if(box.w<.005||box.h<.005||box.x<0||box.y<0||box.x+box.w>1.001||box.y+box.h>1.001) throw new Error(`${kind} 기입 영역을 용지 안에 지정해 주세요.`);
+    if(!['x','y','w','h'].every(k=>Number.isFinite(box[k]))||box.w<.005||box.h<.005||box.x<0||box.y<0||box.x+box.w>1.000001||box.y+box.h>1.000001) throw new Error(`${kind} 기입 영역을 용지 안에 지정해 주세요.`);
+    if(box.fontSize!==undefined&&(!Number.isFinite(box.fontSize)||box.fontSize<6||box.fontSize>36)) throw new Error('영역 글자 크기는 6~36pt로 지정해 주세요.');
+    if(box.header&&box.y<box.h) throw new Error('학번 제목 칸이 용지 위를 벗어납니다. 학번 영역을 아래로 이동해 주세요.');
   }
 }
 
@@ -121,6 +124,13 @@ export async function customDocument(c, lib, fontkit, fontBytes, template, mappi
     const {width:w,height:h}=page.getSize();
     for(const [kind,b] of Object.entries(mapping)) {
       if(kind==='id'&&!c.showId) continue;
+      const size=b.fontSize??fontSize;
+      const border=(y)=>page.drawRectangle({x:b.x*w,y,width:b.w*w,height:b.h*h,borderWidth:.5,borderColor:lib.rgb(.25,.3,.25)});
+      if(kind==='id'&&b.header){
+        const y=h-b.y*h;
+        border(y);
+        centeredText(page,font,'학번',b.x*w,y,b.w*w,b.h*h,size,lib.rgb(0,0,0),b.align);
+      }
       const limit=kind==='title'?1:c.rows;
       for(let r=0;r<limit;r++) {
         const index=p*c.rows+r;
@@ -130,7 +140,8 @@ export async function customDocument(c, lib, fontkit, fontBytes, template, mappi
         const y=h-(b.y+b.h)*h-r*gap;
         if(y<0) throw new Error('마지막 행이 용지를 벗어납니다. 페이지당 인원 또는 행 간격을 줄여 주세요.');
         if(kind==='title') page.drawRectangle({x:b.x*w,y,width:b.w*w,height:b.h*h,color:lib.rgb(1,1,1)});
-        centeredText(page,font,text,b.x*w,y,b.w*w,b.h*h,fontSize,lib.rgb(0,0,0));
+        if(b.border)border(y);
+        centeredText(page,font,text,b.x*w,y,b.w*w,b.h*h,size,lib.rgb(0,0,0),b.align);
       }
     }
   }
