@@ -36,6 +36,15 @@ export function validateConfig(raw) {
 
 export function pageCount(c) { return Math.ceil(c.capacity / c.rows); }
 
+// Mapping stores one person's cell, even when the user selects the whole column.
+export function rowSelection(box, rows, pageHeight, mode='auto') {
+  const split=mode==='column'||(mode==='auto'&&box.h>.15);
+  if(!split)return {box:{...box},split:false};
+  if(!Number.isInteger(rows)||rows<5||rows>40)throw new Error('먼저 페이지당 인원을 5~40명으로 지정해 주세요.');
+  const cell={...box,h:box.h/rows};
+  return {box:cell,split:true,gap:cell.h*pageHeight};
+}
+
 const fontCharacterSets = new WeakMap();
 function fittedSize(font, text, width, wanted, minimum = 5.5) {
   if (!fontCharacterSets.has(font)) fontCharacterSets.set(font, new Set(font.getCharacterSet()));
@@ -107,7 +116,7 @@ export function validateMapping(c, mapping) {
   for(const [kind,box] of Object.entries(mapping)) {
     if(!['x','y','w','h'].every(k=>Number.isFinite(box[k]))||box.w<.005||box.h<.005||box.x<0||box.y<0||box.x+box.w>1.000001||box.y+box.h>1.000001) throw new Error(`${kind} 기입 영역을 용지 안에 지정해 주세요.`);
     if(box.fontSize!==undefined&&(!Number.isFinite(box.fontSize)||box.fontSize<6||box.fontSize>36)) throw new Error('영역 글자 크기는 6~36pt로 지정해 주세요.');
-    if(box.header&&box.y<box.h) throw new Error('학번 제목 칸이 용지 위를 벗어납니다. 학번 영역을 아래로 이동해 주세요.');
+    if(box.header&&box.y<box.h) throw new Error('학번 제목 칸이 용지 위를 벗어납니다. 열 전체를 선택했다면 ‘선택 영역을 전체 열로 나누기’를 누르세요. 한 칸을 선택했다면 학번 영역을 아래로 이동하거나 제목 칸 추가를 꺼 주세요.');
   }
 }
 

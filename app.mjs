@@ -1,4 +1,4 @@
-import { parseRoster, validateConfig, standardDocument, customDocument } from './core.mjs?v=20261107-added-areas-1';
+import { parseRoster, validateConfig, standardDocument, customDocument, rowSelection } from './core.mjs?v=20261107-column-selection-1';
 import { templateType, imageTemplate } from './image-template.mjs';
 import * as pdfjs from './vendor/pdf.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
@@ -29,7 +29,7 @@ async function renderBytes(bytes,mapper=false){
       const canvas=document.createElement('canvas');canvas.width=Math.ceil(view.width);canvas.height=Math.ceil(view.height);canvas.className='paper';canvas.setAttribute('role','img');canvas.setAttribute('aria-label',`출석부 ${i}페이지 미리보기`);
       await page.render({canvasContext:canvas.getContext('2d'),viewport:view}).promise;
       if(mapper&&i===1){
-        const banner=document.createElement('p');banner.className='mapping-banner';banner.textContent='양식 위치 지정 · 항목을 선택한 뒤 첫 행 칸의 두 모서리를 눌러 주세요. 초록색 편집 표시는 PDF에 포함되지 않으며, 새 학번 칸의 테두리와 제목은 PDF에 저장됩니다.';fragment.append(banner);
+        const banner=document.createElement('p');banner.className='mapping-banner';banner.textContent='양식 위치 지정 · 항목을 선택한 뒤 한 칸 또는 제목을 제외한 열 전체의 두 모서리를 눌러 주세요. 초록색 편집 표시는 PDF에 포함되지 않으며, 새 학번 칸의 테두리와 제목은 PDF에 저장됩니다.';fragment.append(banner);
         const wrap=document.createElement('div');wrap.className='mapping-wrapper';wrap.append(canvas);
         const overlay=document.createElement('canvas');overlay.className='mapping-overlay';overlay.width=canvas.width;overlay.height=canvas.height;overlay.setAttribute('aria-label','양식 첫 행의 기입 영역 지정');overlay.dataset.pageHeight=page.getViewport({scale:1}).height;overlay.addEventListener('pointerdown',areaPointerDown);overlay.addEventListener('pointermove',areaPointerMove);overlay.addEventListener('pointerup',areaPointerUp);overlay.addEventListener('pointercancel',areaPointerCancel);wrap.append(overlay);fragment.append(wrap);
       }else fragment.append(canvas);
@@ -70,7 +70,9 @@ function mapClick(event){
   else{
     const box={x:Math.min(point.x,firstPoint.x),y:Math.min(point.y,firstPoint.y),w:Math.abs(point.x-firstPoint.x),h:Math.abs(point.y-firstPoint.y)};
     if(box.w<.005||box.h<.005){toast('영역이 너무 작습니다. 두 모서리를 다시 지정해 주세요.');firstPoint=null;drawMapping();return;}
-    mapping[mappingTarget]=box;selectedArea=mappingTarget;firstPoint=null;mappingTarget=null;syncAreaEditor();markDirty();
+    let selected;try{selected=mappingTarget==='title'?{box,split:false}:rowSelection(box,Number($('rows').value),Number(event.currentTarget.dataset.pageHeight),$('selection-mode').value);}catch(e){error(e.message);firstPoint=null;return;}
+    if(selected.split){$('row-gap').value=Number(selected.gap.toFixed(3));toast(`선택한 열을 ${$('rows').value}명분으로 나눴습니다.`);}
+    mapping[mappingTarget]=selected.box;selectedArea=mappingTarget;firstPoint=null;mappingTarget=null;syncAreaEditor();markDirty();
   }
   drawMapping();
 }
@@ -84,7 +86,7 @@ function syncAreaEditor(){
   for(const k of ['x','y','w','h'])$('area-'+k).value=Number((b[k]*100).toFixed(3));
   $('area-font').value=b.fontSize??$('font-size').value;$('area-align').value=b.align||'center';
   $('area-border').checked=!!b.border;$('area-header').checked=!!b.header;
-  $('area-header').disabled=selectedArea!=='id';
+  $('area-header').disabled=selectedArea!=='id';$('split-area').disabled=selectedArea==='title';
 }
 function pointAt(event){const rect=event.currentTarget.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))};}
 function areaPointerDown(event){
@@ -116,10 +118,11 @@ function areaPointerUp(event){
     toast('첫 사람의 학번 칸을 충분한 크기로 드래그해 주세요.');
   }else{
     if(g.mode==='create'){
-      // The new column starts at the first data row, with its heading above it.
-      $('row-gap').value=Number((b.h*Number(event.currentTarget.dataset.pageHeight)).toFixed(2));
+      let selected;try{selected=rowSelection(b,Number($('rows').value),Number(event.currentTarget.dataset.pageHeight),$('selection-mode').value);}catch(e){areaPointerCancel();error(e.message);return;}
+      mapping.id=selected.box;
+      $('row-gap').value=Number((selected.box.h*Number(event.currentTarget.dataset.pageHeight)).toFixed(3));
       form.elements.showId.checked=true;addingArea=false;mappingTarget=null;
-      toast('학번 칸을 추가했습니다. 행 간격과 페이지당 인원을 확인한 뒤 업데이트해 주세요.');
+      toast(selected.split?`학번 열을 ${$('rows').value}명분으로 나눴습니다. 이름 칸도 열 전체로 지정했다면 같은 방식으로 나눠 주세요.`:'학번 칸을 추가했습니다. 행 간격과 페이지당 인원을 확인한 뒤 업데이트해 주세요.');
     }
     markDirty();
   }
@@ -134,7 +137,7 @@ function areaPointerCancel(){
 async function openAreaEditor(kind,add=false){
   if(!template||busy)return;
   selectedArea=kind;mappingTarget=add?'id':null;addingArea=add;firstPoint=null;setBusy(true);
-  try{await renderBytes(template,true);syncAreaEditor();drawMapping();document.querySelector('.mapping-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});if(add)toast('빈 공간에 첫 사람의 학번 칸을 드래그해 주세요. 위에 제목 칸이 들어갈 공간도 남겨 주세요.');}
+  try{await renderBytes(template,true);syncAreaEditor();drawMapping();document.querySelector('.mapping-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});if(add)toast('첫 학번 칸 또는 제목을 제외한 학번 열 전체를 드래그하세요. 페이지당 인원을 원본 행 수에 맞춰 주세요.');}
   catch(e){error(e.message);}finally{setBusy(false);}
 }
 $('add-id-area').addEventListener('click',()=>openAreaEditor('id',true));
@@ -150,6 +153,17 @@ for(const key of ['x','y','w','h','font','align','border','header'])$('area-'+ke
   drawMapping();
 });
 $('delete-area').addEventListener('click',()=>{if(busy)return;delete mapping[selectedArea];mappingTarget=null;addingArea=false;firstPoint=null;syncAreaEditor();drawMapping();markDirty();});
+$('split-area').addEventListener('click',async()=>{
+  if(busy||!mapping[selectedArea]||selectedArea==='title')return;
+  try{
+    if(!document.querySelector('.mapping-overlay'))await openAreaEditor(selectedArea);
+    const canvas=document.querySelector('.mapping-overlay');if(!canvas)return;
+    const height=Number(canvas.dataset.pageHeight);
+    const selected=rowSelection(mapping[selectedArea],Number($('rows').value),height,'column');
+    mapping[selectedArea]=selected.box;$('row-gap').value=Number(selected.gap.toFixed(3));
+    syncAreaEditor();drawMapping();markDirty();error();toast(`선택 영역을 ${$('rows').value}명분으로 나누고 행 간격을 맞췄습니다.`);
+  }catch(e){error(e.message);}
+});
 $('row-gap').addEventListener('input',drawMapping);
 
 async function generate(){
@@ -204,7 +218,7 @@ $('template-file').addEventListener('change',async e=>{
 });
 document.querySelectorAll('[data-map]').forEach(button=>button.addEventListener('click',async()=>{
   if(!template||busy)return;mappingTarget=button.dataset.map;addingArea=false;gesture=null;firstPoint=null;setBusy(true);
-  try{await renderBytes(template,true);drawMapping();document.querySelector('.mapping-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});toast('첫 행 칸의 왼쪽 위와 오른쪽 아래를 차례로 눌러 주세요.');}catch(e){error(e.message);}finally{setBusy(false);}
+  try{await renderBytes(template,true);drawMapping();document.querySelector('.mapping-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});toast('한 칸 또는 제목을 제외한 열 전체의 왼쪽 위와 오른쪽 아래를 차례로 눌러 주세요.');}catch(e){error(e.message);}finally{setBusy(false);}
 }));
 $('reset-mapping').addEventListener('click',async()=>{if(busy)return;mapping={};mappingTarget=null;firstPoint=null;selectedArea=null;addingArea=false;gesture=null;syncAreaEditor();markDirty();setBusy(true);try{await renderBytes(template,true);}catch(e){error(e.message);}finally{setBusy(false);}});
 $('remove-template').addEventListener('click',()=>{if(busy)return;template=null;mapping={};mappingTarget=null;firstPoint=null;selectedArea=null;addingArea=false;gesture=null;syncAreaEditor();$('template-controls').hidden=true;$('template-status').textContent='첨부 없이 기본 출석부를 만들 수 있어요.';markDirty();generate();});

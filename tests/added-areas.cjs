@@ -68,6 +68,22 @@ const {chromium}=require('playwright');
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await page.locator('#roster').fill('');await page.locator('button[type="submit"]').click();await page.waitForFunction(()=>document.querySelector('#summary').textContent.includes('명단 0명'));
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  // Regression: the screenshot selected 71.193% of the page as one data cell.
+  await page.locator('#capacity').fill('24');await page.locator('#rows').fill('24');
+  await page.locator('#add-id-area').click();await page.waitForFunction(()=>!document.querySelector('#download').disabled);
+  overlay=page.locator('.mapping-overlay');await overlay.scrollIntoViewIfNeeded();await page.waitForTimeout(500);box=await overlay.boundingBox();
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:box.x+box.width*.1,y:box.y+box.height*.20984}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:box.x+box.width*.2,y:box.y+box.height*.92177}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  assert.ok(Math.abs(Number(await page.locator('#area-h').inputValue())-71.193/24)<.01);
+  assert.ok(Number(await page.locator('#row-gap').inputValue())<40);
+  await page.locator('button[type="submit"]').click();await page.waitForFunction(()=>!document.querySelector('#download').disabled);
+  assert.equal(await page.locator('#form-error').textContent(),'');
+  // Recover an already selected full-height area, including after PDF generation.
+  await page.locator('#area-h').fill('71.193');await page.locator('#split-area').click();
+  await page.waitForFunction(()=>Number(document.querySelector('#area-h').value)<4);
+  await page.locator('button[type="submit"]').click();await page.waitForFunction(()=>!document.querySelector('#download').disabled);
+  assert.equal(await page.locator('#form-error').textContent(),'');
   assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
   console.log('PASS: PDF/image upload, added column, drag/move/resize, typography, multi-page PDF, validation, deletion, original mapping, mobile layout, no external requests');
   await browser.close();
