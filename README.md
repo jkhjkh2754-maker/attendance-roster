@@ -1,4 +1,4 @@
-# 출석부 작업실
+# 경희의 출석부
 
 [웹앱 열기](https://jkhjkh2754-maker.github.io/attendance-roster/)
 
@@ -41,6 +41,23 @@
 로컬 확인: 이 폴더에서 정적 HTTP 서버를 실행하고 브라우저로 접속합니다. 예: `python -m http.server 8080`.
 
 최신 Chrome·Edge·Safari·Firefox를 대상으로 합니다. 모바일에서는 PDF 저장 버튼으로 다운로드 후 파일 앱이나 PDF 뷰어에서 인쇄하세요. 첨부 PDF의 비표준 용지·혼합 방향은 저장한 PDF의 뷰어에서 인쇄하는 편이 정확합니다.
+
+## 검색엔진 등록
+
+사이트 이름은 **경희의 출석부**입니다. HTML 제목·본문·설명·Open Graph·구조화 데이터에 이름을 반영하고, 버전 쿼리(`?v=...`)가 없는 주소를 대표 URL로 지정했습니다. 검색 로봇은 JavaScript 실행 없이도 이름과 설명을 읽을 수 있습니다.
+
+- 대표 URL: https://jkhjkh2754-maker.github.io/attendance-roster/
+- 사이트맵: https://jkhjkh2754-maker.github.io/attendance-roster/sitemap.xml
+
+검색엔진의 발견과 수집을 요청하려면 사이트 소유자 계정으로 아래 절차를 진행합니다. 코드 배포만으로 검색 결과 노출이나 순위가 보장되지는 않으며, 수집·색인에는 시간이 걸릴 수 있습니다.
+
+1. [Google Search Console](https://search.google.com/search-console/)에서 위 대표 URL을 **URL 접두어 속성**으로 추가합니다. HTML 파일 또는 HTML 메타 태그 방식으로 소유권을 확인합니다. GitHub Pages 기본 도메인은 직접 DNS를 관리할 수 없으므로 도메인 속성 대신 URL 접두어 속성을 사용합니다.
+2. Google Search Console의 **Sitemaps**에서 위 사이트맵 주소를 제출하고, **URL 검사**에서 대표 URL의 색인 생성을 요청합니다.
+3. [네이버 서치어드바이저](https://searchadvisor.naver.com/)의 웹마스터 도구에서 사이트를 추가하고, 제공되는 HTML 파일 또는 메타 태그로 소유권을 확인합니다. **요청 → 사이트맵 제출**에 위 사이트맵 주소를 입력하고 **웹 페이지 수집**에서 대표 URL의 수집을 요청합니다.
+
+소유권 확인용 파일·태그는 각 서비스가 실제로 발급한 값을 사용하며, 확인 후에도 유지합니다. 사이트 주소가 바뀌면 `index.html`의 canonical·Open Graph·JSON-LD URL과 `sitemap.xml`도 함께 변경합니다.
+
+`robots.txt`는 호스트 루트인 `https://jkhjkh2754-maker.github.io/robots.txt`에 있을 때만 적용됩니다. 이 프로젝트 경로 아래에 만드는 `attendance-roster/robots.txt`는 검색 로봇 정책으로 사용되지 않습니다. 호스트 루트의 `robots.txt`가 404인 것은 수집 차단이 아니며, 이 사이트는 HTML의 `index, follow`로 색인을 허용합니다. 이후 호스트 루트 정책을 추가할 때 이 사이트 경로를 차단하지 않도록 확인하세요.
 
 ## 구성과 오픈소스
 
