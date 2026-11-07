@@ -2,7 +2,7 @@ import { parseRoster, validateConfig, standardDocument, customDocument } from '.
 import * as pdfjs from './vendor/pdf.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc=new URL('./vendor/pdf.worker.min.mjs',import.meta.url).href;
 const $=id=>document.getElementById(id), form=$('roster-form');
-let template=null,mapping={},mappingTarget=null,firstPoint=null,output=null,dirty=true,busy=false,currentConfig=null,toastTimer,previewGeneration=0;
+let template=null,mapping={},mappingTarget=null,firstPoint=null,output=null,dirty=true,busy=false,currentConfig=null,toastTimer,previewGeneration=0,revision=0;
 const fontPromise=fetch('./assets/NanumGothic-Regular.ttf').then(r=>{if(!r.ok)throw new Error('한글 글꼴을 불러오지 못했습니다. 페이지를 다시 열어 주세요.');return r.arrayBuffer()});
 // The font is local to this deployment. No roster or PDF is sent anywhere.
 fontPromise.catch(()=>{});
@@ -11,7 +11,7 @@ function config(){const f=new FormData(form);return validateConfig({title:f.get(
 function error(message=''){ $('form-error').textContent=message;$('form-error').hidden=!message; }
 function toast(message){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,4200);}
 function setBusy(value){busy=value;for(const id of ['download','print','template-file'])$(id).disabled=value;form.querySelector('[type=submit]').disabled=value;}
-function markDirty(){dirty=true;$('summary').classList.add('dirty');$('summary').textContent='설정이 변경되었습니다. 업데이트 또는 PDF 저장을 눌러 주세요.';}
+function markDirty(){revision++;dirty=true;$('summary').classList.add('dirty');$('summary').textContent='설정이 변경되었습니다. 업데이트 또는 PDF 저장을 눌러 주세요.';}
 function countRoster(){try{$('roster-count').textContent=`입력한 명단 ${parseRoster($('roster').value).length}명`;}catch{$('roster-count').textContent='명단 형식을 확인해 주세요';}}
 
 async function renderBytes(bytes,mapper=false){
@@ -64,13 +64,14 @@ function mapClick(event){
 }
 
 async function generate(){
-  if(busy)return false;setBusy(true);error();
+  if(busy)return false;const generationRevision=revision;setBusy(true);error();
   try{
     const c=config(),font=await fontPromise;
     if(!globalThis.PDFLib||!globalThis.fontkit)throw new Error('PDF 도구를 불러오지 못했습니다. 페이지를 다시 열어 주세요.');
     const bytes=template?await customDocument(c,PDFLib,fontkit,font,template,mapping,Number($('row-gap').value),Number($('font-size').value)):await standardDocument(c,PDFLib,fontkit,font);
     currentConfig=c;await renderBytes(bytes);output=bytes;dirty=false;mappingTarget=null;firstPoint=null;
     $('summary').classList.remove('dirty');$('summary').textContent=`${c.capacity}명 · 명단 ${c.records.length}명 · 빈 이름 칸 ${c.capacity-c.records.length}명${template?' · 첨부 양식 적용':''}`;
+    if(generationRevision!==revision){markDirty();return false;}
     return true;
   }catch(e){error(e.message||'PDF를 만들지 못했습니다. 입력과 양식을 확인해 주세요.');return false;}
   finally{setBusy(false);}
