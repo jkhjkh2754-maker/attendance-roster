@@ -45,22 +45,45 @@
   }
   </script>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=20261107-row-layout-1">
+  <link rel="stylesheet" href="./style.css?v=20261108-ui-1">
   <link rel="stylesheet" href="./startup.css">
+  <link rel="stylesheet" href="./workspace.css?v=20261108-ui-1">
   <script defer src="./vendor/pdf-lib.min.js"></script>
   <script defer src="./vendor/fontkit.min.js"></script>
-  <script defer src="./bootstrap.js?v=20261107-row-layout-1"></script>
+  <script defer src="./bootstrap.js?v=20261108-ui-1"></script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">✓</span>경희의 출석부</a><span class="local-badge"><span></span>명단은 내 기기에서만 처리</span></header>
+  <header class="topbar"><a class="brand" href="./">경희의 출석부</a><span class="local-badge"><span></span>명단은 내 기기에서만 처리</span></header>
   <main>
-    <section class="intro"><div><p class="eyebrow">작은 준비, 편안한 수업</p><h1>경희의 출석부</h1><p class="intro-copy">우리 수업에 꼭 맞는 무료 출석부 PDF 만들기.<br>제목과 인원을 정하고, 명단을 붙여 넣으세요.<br class="mobile-break"> 바로 확인하고 PDF로 저장할 수 있어요.</p></div><div class="intro-mark" aria-hidden="true"><span>ATTENDANCE</span><b>함께하는<br>하루의 기록.</b><i>01 — 31</i></div></section>
+    <section class="intro">
+      <div><p class="eyebrow">작은 준비, 편안한 수업</p><h1>우리 반 출석부 만들기<span>.</span></h1><p class="intro-copy">제목과 명단만 준비하세요.<span> 단정한 A4 출석부가 완성됩니다.</span></p></div>
+      <ol class="workflow" aria-label="출석부 만드는 순서"><li><span>1</span>설정하기</li><li><span>2</span>명단 넣기</li><li><span>3</span>PDF 저장</li></ol>
+    </section>
+    <nav class="mobile-nav" aria-label="작업 영역 이동"><a href="#settings">출석부 설정</a><a href="#preview">미리보기 보기 <span aria-hidden="true">↓</span></a></nav>
     <section id="startup-status" class="startup-status" role="alert" hidden></section>
     <noscript><p class="startup-status">출석부를 만들려면 브라우저에서 JavaScript를 허용해 주세요.</p></noscript>
     <div class="workspace">
-      <aside class="settings" aria-label="출석부 설정">
+      <aside id="settings" class="settings" aria-label="출석부 설정">
+        <div class="settings-heading"><h2>출석부 설정</h2><span>나의 수업에 맞게</span></div>
         <form id="roster-form" novalidate onsubmit="return false">
-          <section class="form-section template-section"><h2><span>+</span> 나의 양식 <small>PDF · 이미지</small></h2>
+          <section class="form-section"><h2><span>01</span> 기본 설정</h2>
+            <label for="title">출석부 제목</label><input id="title" name="title" value="예덕반 출석부" maxlength="80" required>
+            <div class="field-grid"><div><label for="capacity">전체 인원</label><div class="unit-input"><input id="capacity" name="capacity" type="number" min="1" max="300" value="24" required><span>명</span></div></div><div><label for="start">시작 번호</label><input id="start" name="start" type="number" min="1" max="99999" value="1" required></div></div>
+            <div class="field-grid"><div><label for="columns">출석 확인 칸</label><div class="unit-input"><input id="columns" name="columns" type="number" min="1" max="40" value="31" required><span>칸</span></div></div><div><label for="column-mode">칸 표시</label><select id="column-mode" name="columnMode"><option value="day">날짜 (1~31일)</option><option value="session">회차 (1~40회)</option></select></div></div>
+            <div class="field-grid"><div><label for="year">연도 <small>선택</small></label><input id="year" name="year" type="number" min="1900" max="2200" placeholder="예: 2026"></div><div><label for="month">월 <small>선택</small></label><select id="month" name="month"><option value="">미지정</option><option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select></div></div>
+            <label class="check-label"><input id="weekdays" name="weekdays" type="checkbox">요일 자동 기입 <small>연도·월 지정 시</small></label>
+          </section>
+          <section class="form-section"><div class="section-heading"><h2><span>02</span> 명단 입력</h2><button class="text-button" id="sample" type="button">예시 보기</button></div>
+            <label for="roster">학번과 이름 <small>선택</small></label><textarea id="roster" name="roster" rows="6" spellcheck="false" placeholder="한 줄에 한 명씩 입력하세요.&#10;학번 이름 / 학번, 이름 / 이름만&#10;&#10;비워 두면 빈 출석부가 만들어집니다."></textarea>
+            <div class="roster-help"><span id="roster-count">입력한 명단 0명</span><button id="clear-roster" class="text-button" type="button">명단 비우기</button></div>
+            <p class="field-hint">붙여 넣은 순서와 학번의 앞자리 0을 유지합니다.</p>
+          </section>
+          <details class="form-section optional-section"><summary><span class="optional-title"><span class="section-number">03</span> 용지와 배치</span><span class="summary-meta">A4 · 색상 <span aria-hidden="true">⌄</span></span></summary><div class="optional-body">
+            <label for="orientation">A4 용지 방향</label><select id="orientation" name="orientation"><option value="portrait">세로</option><option value="landscape">가로</option></select>
+            <div class="field-grid"><div><label for="rows">페이지당 인원</label><input id="rows" name="rows" type="number" min="5" max="40" value="24" required></div><div><label for="accent">표 색상</label><select id="accent" name="accent"><option value="green">차분한 초록</option><option value="blue">맑은 파랑</option><option value="gray">흑백</option></select></div></div>
+            <label class="check-label"><input name="showId" type="checkbox" checked>학번 칸 표시</label><label class="check-label"><input name="showNote" type="checkbox">비고 칸 표시</label>
+          </div></details>
+          <details id="custom-template" class="form-section template-section optional-section"><summary><span class="optional-title">기존 양식 불러오기</span><span class="summary-meta">PDF · 이미지 <span aria-hidden="true">⌄</span></span></summary><div class="optional-body">
             <label for="template-file" class="upload-label">PDF·이미지 양식 불러오기 <span>↑</span></label><input id="template-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp,.pdf,.png,.jpg,.jpeg,.webp">
             <p class="field-hint">PDF · PNG · JPG · WebP / 최대 10MB<br>이미지는 비율을 유지해 PDF로 변환합니다. 파일은 서버로 전송하지 않습니다.</p>
             <p id="template-status" class="field-hint" role="status">첨부 없이 기본 출석부를 만들 수 있어요.</p>
@@ -90,35 +113,18 @@
               <div class="template-actions"><button id="reset-mapping" class="text-button" type="button">영역 초기화</button><button id="remove-template" class="text-button" type="button">기본 양식으로 돌아가기</button></div>
               <p class="field-hint">제목 영역은 흰색으로 덮고 새 제목을 넣습니다. 번호는 빈 칸일 때만 지정하세요. 날짜·표 구성은 원본을 유지합니다. 여러 쪽이면 같은 상대 위치로 기입하고, 추가 쪽은 원본 순서대로 반복합니다.</p>
             </div>
-          </section>
-          <section class="form-section"><h2><span>01</span> 기본 설정</h2>
-            <label for="title">출석부 제목</label><input id="title" name="title" value="예덕반 출석부" maxlength="80" required>
-            <div class="field-grid"><div><label for="capacity">전체 인원</label><div class="unit-input"><input id="capacity" name="capacity" type="number" min="1" max="300" value="24" required><span>명</span></div></div><div><label for="start">시작 번호</label><input id="start" name="start" type="number" min="1" max="99999" value="1" required></div></div>
-            <div class="field-grid"><div><label for="columns">출석 확인 칸</label><div class="unit-input"><input id="columns" name="columns" type="number" min="1" max="40" value="31" required><span>칸</span></div></div><div><label for="column-mode">칸 표시</label><select id="column-mode" name="columnMode"><option value="day">날짜 (1~31일)</option><option value="session">회차 (1~40회)</option></select></div></div>
-            <div class="field-grid"><div><label for="year">연도 <small>선택</small></label><input id="year" name="year" type="number" min="1900" max="2200" placeholder="예: 2026"></div><div><label for="month">월 <small>선택</small></label><select id="month" name="month"><option value="">미지정</option><option value="1">1월</option><option value="2">2월</option><option value="3">3월</option><option value="4">4월</option><option value="5">5월</option><option value="6">6월</option><option value="7">7월</option><option value="8">8월</option><option value="9">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select></div></div>
-            <label class="check-label"><input id="weekdays" name="weekdays" type="checkbox">요일 자동 기입 <small>연도·월 지정 시</small></label>
-          </section>
-          <section class="form-section"><div class="section-heading"><h2><span>02</span> 명단 입력</h2><button class="text-button" id="sample" type="button">예시 보기</button></div>
-            <label for="roster">학번과 이름 <small>선택</small></label><textarea id="roster" name="roster" rows="6" spellcheck="false" placeholder="한 줄에 한 명씩 입력하세요.&#10;학번 이름 / 학번, 이름 / 이름만&#10;&#10;비워 두면 빈 출석부가 만들어집니다."></textarea>
-            <div class="roster-help"><span id="roster-count">입력한 명단 0명</span><button id="clear-roster" class="text-button" type="button">명단 비우기</button></div>
-            <p class="field-hint">붙여 넣은 순서와 학번의 앞자리 0을 유지합니다.</p>
-          </section>
-          <section class="form-section"><h2><span>03</span> 용지와 배치</h2>
-            <label for="orientation">A4 용지 방향</label><select id="orientation" name="orientation"><option value="portrait">세로</option><option value="landscape">가로</option></select>
-            <div class="field-grid"><div><label for="rows">페이지당 인원</label><input id="rows" name="rows" type="number" min="5" max="40" value="24" required></div><div><label for="accent">표 색상</label><select id="accent" name="accent"><option value="green">차분한 초록</option><option value="blue">맑은 파랑</option><option value="gray">흑백</option></select></div></div>
-            <label class="check-label"><input name="showId" type="checkbox" checked>학번 칸 표시</label><label class="check-label"><input name="showNote" type="checkbox">비고 칸 표시</label>
-          </section>
-          <div class="form-bottom"><p id="form-error" class="error" role="alert" hidden></p><button class="primary-button" type="submit">미리보기 업데이트 <span aria-hidden="true">↗</span></button><p class="field-hint">인원이 많으면 여러 페이지로 자동 분할합니다.</p></div>
+          </div></details>
+          <div class="form-bottom"><p id="form-error" class="error" role="alert" hidden></p><button class="primary-button" type="submit">미리보기 업데이트 <span aria-hidden="true">→</span></button><p class="field-hint">인원이 많으면 여러 페이지로 자동 분할합니다.</p></div>
         </form>
       </aside>
-      <section class="preview-panel" aria-label="출석부 미리보기">
-        <div class="preview-toolbar"><div><span class="live-dot"></span><h2>미리보기</h2><span id="page-info" class="page-info">A4 · 1페이지</span></div><button id="download" class="download-button" type="button"><span aria-hidden="true">↓</span> PDF 저장</button></div>
+      <section id="preview" class="preview-panel" aria-label="출석부 미리보기">
+        <div class="preview-toolbar"><div><h2>출석부 미리보기</h2><span id="page-info" class="page-info">A4 · 1페이지</span></div><button id="download" class="download-button" type="button"><span aria-hidden="true">↓</span> PDF 저장</button></div>
         <div class="preview-status"><p id="summary" role="status" aria-live="polite"></p><button id="print" class="text-button" type="button">인쇄</button></div>
         <div id="preview-pages" class="preview-pages"></div>
-        <p class="preview-caption">보이는 배치 그대로 PDF에 담깁니다. <span>입력한 정보는 새로고침하면 지워집니다.</span></p>
+        <p class="preview-caption">보이는 그대로, 인쇄하기 좋은 A4 PDF.<span>입력한 정보는 새로고침하면 지워집니다.</span></p>
       </section>
     </div>
-    <section class="usage-note"><span aria-hidden="true">↳</span><p><b>명단 없이도 괜찮아요.</b> 빈 출석부를 출력해서 직접 적어도 됩니다. 저장한 PDF는 인쇄할 때 A4, 실제 크기(100%)를 선택해 주세요.</p></section>
+    <section class="usage-note"><p><b>명단 없이도 괜찮아요.</b> 빈 출석부를 출력해서 직접 적어도 됩니다. 저장한 PDF는 인쇄할 때 A4, 실제 크기(100%)를 선택해 주세요.</p></section>
   </main>
   <footer><span>경희의 출석부</span><p>가입 없이 · API 없이 · 내 브라우저에서</p><a href="https://github.com/jkhjkh2754-maker/attendance-roster" target="_blank" rel="noopener noreferrer">GitHub ↗</a></footer>
   <div id="toast" class="toast" role="status" hidden></div>

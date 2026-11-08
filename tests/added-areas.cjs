@@ -3,11 +3,13 @@ const assert=require('node:assert/strict');
 const {chromium}=require('playwright');
 (async()=>{
   const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+  const baseURL=process.env.BASE_URL||'http://127.0.0.1:8080';
   const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[],external=[];
   page.on('pageerror',e=>errors.push(e.message));
-  page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:8080')&&!r.url().startsWith('blob:')&&!r.url().startsWith('data:'))external.push(r.url());});
-  await page.goto('http://127.0.0.1:8080');
+  page.on('request',r=>{if(!r.url().startsWith(baseURL)&&!r.url().startsWith('blob:')&&!r.url().startsWith('data:'))external.push(r.url());});
+  await page.goto(baseURL);
   await page.waitForFunction(()=>document.querySelector('#summary').textContent.includes('빈 이름 칸'));
+  await page.locator('summary').filter({hasText:'용지와 배치'}).click();
   const source=await page.evaluate(async()=>{const d=await PDFLib.PDFDocument.create();for(let i=0;i<2;i++){const p=d.addPage([600,800]);p.drawText('Original template '+(i+1),{x:200,y:740,size:16});for(let r=0;r<=5;r++)p.drawLine({start:{x:200,y:640-r*30},end:{x:400,y:640-r*30}});}return [...await d.save()];});
   await page.locator('#template-file').setInputFiles({name:'template.pdf',mimeType:'application/pdf',buffer:Buffer.from(source)});
   await page.locator('#template-controls').waitFor({state:'visible'});

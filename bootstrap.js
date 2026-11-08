@@ -4,6 +4,9 @@
   const form = document.getElementById('roster-form');
   // Never submit roster data in a URL when app modules cannot load.
   form.addEventListener('submit', event => event.preventDefault());
+  document.getElementById('template-file').addEventListener('change', () => {
+    if (document.getElementById('template-file').files.length) document.getElementById('custom-template').open = true;
+  });
   const controls = [...document.querySelectorAll('button, input, select, textarea')];
   controls.forEach(control => { control.disabled = true; });
   function showFailure(message) {
